@@ -61,6 +61,20 @@ func (c *Conn) startJob(ch chan<- string, job string, args ...interface{}) (int,
 	return jobID, nil
 }
 
+type JobID struct {
+	jobID int
+	err   error
+}
+
+func (c *Conn) startJobAsync(jch chan<- JobID, ch chan<- string, job string, args ...interface{}) {
+	go func() {
+		id, err := c.startJob(ch, job, args...)
+		if jch != nil {
+			jch <- JobID{id, err}
+		}
+	}()
+}
+
 // StartUnit enqueues a start job and depending jobs, if any (unless otherwise
 // specified by the mode string).
 //
@@ -95,15 +109,31 @@ func (c *Conn) StartUnit(name string, mode string, ch chan<- string) (int, error
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.StartUnit", name, mode)
 }
 
+// Asynchronous version of StartUnit, takes the same parameters as
+// synchronous version and an optional channel for getting job ID.
+func (c *Conn) StartUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.StartUnit", name, mode)
+}
+
 // StopUnit is similar to StartUnit but stops the specified unit rather
 // than starting it.
 func (c *Conn) StopUnit(name string, mode string, ch chan<- string) (int, error) {
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.StopUnit", name, mode)
 }
 
+// Asynchronous version of StopUnit.
+func (c *Conn) StopUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.StopUnit", name, mode)
+}
+
 // ReloadUnit reloads a unit.  Reloading is done only if the unit is already running and fails otherwise.
 func (c *Conn) ReloadUnit(name string, mode string, ch chan<- string) (int, error) {
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.ReloadUnit", name, mode)
+}
+
+// Asynchronous version of ReloadUnit.
+func (c *Conn) ReloadUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.ReloadUnit", name, mode)
 }
 
 // RestartUnit restarts a service.  If a service is restarted that isn't
@@ -112,10 +142,20 @@ func (c *Conn) RestartUnit(name string, mode string, ch chan<- string) (int, err
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.RestartUnit", name, mode)
 }
 
+// Asynchronous version of RestartUnit.
+func (c *Conn) RestartUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.RestartUnit", name, mode)
+}
+
 // TryRestartUnit is like RestartUnit, except that a service that isn't running
 // is not affected by the restart.
 func (c *Conn) TryRestartUnit(name string, mode string, ch chan<- string) (int, error) {
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.TryRestartUnit", name, mode)
+}
+
+// Asynchronous version of TryRestartUnit.
+func (c *Conn) TryRestartUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.TryRestartUnit", name, mode)
 }
 
 // ReloadOrRestart attempts a reload if the unit supports it and use a restart
@@ -124,10 +164,20 @@ func (c *Conn) ReloadOrRestartUnit(name string, mode string, ch chan<- string) (
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.ReloadOrRestartUnit", name, mode)
 }
 
+// Asynchronous version of ReloadOrRestartUnit.
+func (c *Conn) ReloadOrRestartUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.ReloadOrRestartUnit", name, mode)
+}
+
 // ReloadOrTryRestart attempts a reload if the unit supports it and use a "Try"
 // flavored restart otherwise.
 func (c *Conn) ReloadOrTryRestartUnit(name string, mode string, ch chan<- string) (int, error) {
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.ReloadOrTryRestartUnit", name, mode)
+}
+
+// Asynchronous version of ReloadOrTryRestartUnit.
+func (c *Conn) ReloadOrTryRestartUnitAsync(name string, mode string, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.ReloadOrTryRestartUnit", name, mode)
 }
 
 // StartTransientUnit() may be used to create and start a transient unit, which
@@ -137,6 +187,11 @@ func (c *Conn) ReloadOrTryRestartUnit(name string, mode string, ch chan<- string
 // of the unit.
 func (c *Conn) StartTransientUnit(name string, mode string, properties []Property, ch chan<- string) (int, error) {
 	return c.startJob(ch, "org.freedesktop.systemd1.Manager.StartTransientUnit", name, mode, properties, make([]PropertyCollection, 0))
+}
+
+// Asynchronous version of StartTransientUnit.
+func (c *Conn) StartTransientUnitAsync(name string, mode string, properties []Property, jch chan<- JobID, ch chan<- string) {
+	c.startJobAsync(jch, ch, "org.freedesktop.systemd1.Manager.StartTransientUnit", name, mode, properties, make([]PropertyCollection, 0))
 }
 
 // KillUnit takes the unit name and a UNIX signal number to send.  All of the unit's
